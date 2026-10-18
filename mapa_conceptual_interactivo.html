@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Conceptual Interactivo - Derecho Tributario</title>
+    <!-- Tailwind CSS for modern responsive UI styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Vis.js Network for interactive mind map rendering -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        /* Custom scrollbars and full canvas height */
+        body, html {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        #mynetwork {
+            width: 100%;
+            height: 100%;
+            background-color: #f8fafc;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+        }
+        /* Custom styling for details panel drawer */
+        #details-drawer {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex flex-col h-screen relative">
+
+    <!-- Navigation / Header Bar -->
+    <header class="glass-panel border-b border-slate-200 px-6 py-4 flex flex-wrap items-center justify-between z-20 shadow-sm gap-4">
+        <div class="flex items-center space-x-3">
+            <div class="p-2.5 bg-blue-600 text-white rounded-xl shadow-md">
+                <i class="fa-solid me-0 fa-scale-balanced text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg text-slate-900 leading-tight">Código Tributario - Capítulo II</h1>
+                <p class="text-xs text-slate-500">Sujeto Activo, Obligados Tributarios y Tipos de Responsabilidad</p>
+            </div>
+        </div>
+
+        <!-- Quick Search & Actions -->
+        <div class="flex items-center space-x-2 w-full md:w-auto">
+            <div class="relative flex-1 md:w-64">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input type="text" id="searchInput" placeholder="Buscar concepto o artículo..." 
+                       class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all">
+            </div>
+            <button id="btnResetView" title="Restablecer Vista" class="p-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition-colors">
+                <i class="fa-solid fa-compress"></i>
+            </button>
+            <button id="btnExpandAll" title="Expandir Nodos" class="p-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg font-medium text-xs flex items-center space-x-1 border border-blue-200">
+                <i class="fa-solid fa-sitemap"></i>
+                <span class="hidden sm:inline">Resetear Grafo</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Interactive Map Area -->
+    <main class="flex-1 relative overflow-hidden">
+        <!-- Vis.js Canvas Container -->
+        <div id="mynetwork"></div>
+
+        <!-- Interactive Legend -->
+        <div class="absolute bottom-6 left-6 glass-panel border border-slate-200 rounded-xl p-4 shadow-lg z-10 hidden sm:block max-w-xs">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Categorías</h3>
+            <div class="space-y-2 text-xs">
+                <div class="flex items-center space-x-2">
+                    <span class="w-3.5 h-3.5 rounded-full bg-blue-600 inline-block shadow-sm"></span>
+                    <span class="text-slate-700 font-medium">Sujeto Activo / Estado</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-3.5 h-3.5 rounded-full bg-emerald-600 inline-block shadow-sm"></span>
+                    <span class="text-slate-700 font-medium">Sujetos Pasivos & Obligados</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-3.5 h-3.5 rounded-full bg-amber-500 inline-block shadow-sm"></span>
+                    <span class="text-slate-700 font-medium">Responsabilidad Solidaria</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-3.5 h-3.5 rounded-full bg-purple-600 inline-block shadow-sm"></span>
+                    <span class="text-slate-700 font-medium">Responsabilidad Subsidiaria</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-3.5 h-3.5 rounded-full bg-slate-400 inline-block shadow-sm"></span>
+                    <span class="text-slate-700 font-medium">Reglas y Procedimientos</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide-over Drawer for Node Details -->
+        <div id="details-drawer" class="absolute top-0 right-0 h-full w-full sm:w-96 glass-panel border-l border-slate-200 shadow-2xl z-30 transform translate-x-full p-6 flex flex-col overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-4 mb-4">
+                <div class="flex items-center space-x-2">
+                    <span id="nodeBadge" class="px-2.5 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-700">Artículo</span>
+                </div>
+                <button id="btnCloseDrawer" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <div id="drawerContent" class="space-y-4 flex-1">
+                <h2 id="nodeTitle" class="text-xl font-bold text-slate-900 leading-snug">Selecciona un nodo</h2>
+                <div id="nodeSubtitle" class="text-xs text-slate-500 font-mono"></div>
+                <div class="border-t border-slate-100 pt-3">
+                    <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Descripción Legal</h4>
+                    <p id="nodeDescription" class="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        Haz clic en cualquiera de los nodos del mapa conceptual para ver el fundamento legal y los detalles del articulado correspondiente.
+                    </p>
+                </div>
+                <div id="additionalDetails" class="space-y-2 pt-2">
+                    <!-- Dynamic extra content like bullet points -->
+                </div>
+            </div>
+            <div class="border-t border-slate-200 pt-4 mt-auto">
+                <button id="btnFocusNode" class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-lg shadow transition-colors flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-crosshairs"></i>
+                    <span>Centrar en Nodo</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Store node dataset & graph data
+        let network = null;
+        let selectedNodeId = null;
+
+        // Raw node definition based on tax law text
+        const nodesData = [
+            // Central Node
+            { id: 1, label: "Relación Jurídico\nTributaria\n(Capítulo II)", group: "root", shape: "ellipse", size: 30, font: { size: 16, color: "#ffffff" }, color: { background: "#0f172a" }, title: "Marco Legal Capítulo II" },
+
+            // Article 28 Branch
+            { id: 2, label: "Art. 28: Sujeto Activo\ny Pasivo", group: "activo", level: 1, text: "Define las partes de la relación tributaria.", details: "Sujeto Activo: Estado (facultad delegated). Sujeto Pasivo: Persona natural/jurídica que realiza el hecho generador." },
+            { id: 21, label: "Sujeto Activo (Estado)", group: "activo", level: 2, text: "El Estado delega en el ente público la gestión y exigencia.", details: "No requiere ostentar el poder de crear el tributo ni ser destinatario de los rendimientos." },
+            { id: 22, label: "Sujeto Pasivo", group: "pasivo", level: 2, text: "Persona Natural o Jurídica, nacional o extranjera.", details: "Realiza el hecho generador o contribución y debe cumplir sus obligaciones ante el sujeto activo." },
+
+            // Article 29 Branch
+            { id: 3, label: "Art. 29: Obligados\nTributarios", group: "pasivo", level: 1, text: "Listado taxativo de quiénes son obligados tributarios.", details: "Incluye contribuyentes, agentes, sucesores, fideicomisos y sujetos con deberes formales." },
+            { id: 30, label: "1. Contribuyentes\n(Art. 30)", group: "pasivo", level: 2, text: "Sujetos directamente ligados al hecho generador.", details: "Personas naturales, jurídicas, entidades sin personalidad que forman unidad económica, herencias yacentes, etc." },
+            { id: 31, label: "2. Pagos a Cuenta\n(Art. 31)", group: "pasivo", level: 2, text: "Pagos anticipados a la exigibilidad del tributo.", details: "Ingresan cantidades a cuenta de la obligación principal de forma previa." },
+            { id: 32, label: "3 y 4. Agentes de Retención\ny Pago Especie (Art. 32)", group: "pasivo", level: 2, text: "Retención en fuente y pagos en especie.", details: "Obligados a retener al momento del pago/devengo. En especie, debe retenerse el equivalente si fuera efectivo." },
+            { id: 33, label: "5. Agentes de Percepción\n(Art. 33)", group: "pasivo", level: 2, text: "Obligación de percibir en el cobro.", details: "Reciben e ingresan al Estado tributos adicionales cobrados al cliente. Emiten comprobante de percepción." },
+            { id: 34, label: "6. Sucesores Mortis\nCausa (Art. 34)", group: "pasivo", level: 2, text: "Transmisión por fallecimiento.", details: "Derechos y obligaciones pasan a herederos/legatarios. Límite: valor de la porción heredada." },
+            { id: 35, label: "7. Terceros Responsables\n(Art. 35)", group: "pasivo", level: 2, text: "Cumplen cuando falla el principal.", details: "Tienen derecho de repetición frente al deudor principal según la legislación civil." },
+
+            // Responsibility Core
+            { id: 4, label: "Clases de Responsabilidad\n(Art. 36-38)", group: "general", level: 1, text: "Reglas generales de la responsabilidad.", details: "Solo se extiende a la obligación principal (no sanciones, salvo dolo). Requiere acto administrativo que la declare." },
+            
+            // Solidary Responsibility Branch (Art. 39-43)
+            { id: 5, label: "Responsabilidad\nSolidaria (Art. 39)", group: "solidaria", level: 2, text: "Cualquiera responde por el total.", details: "Aplica a co-realizadores del hecho generador, agentes omisos, dolo/mala fe, fusiones y donaciones." },
+            { id: 51, label: "Efectos Solidaridad\n(Art. 39)", group: "solidaria", level: 3, text: "Reglas de cobro y pago.", details: "Exigible a cualquiera; pago total libera a los demás (con derecho a repetir); interrupción de prescripción afecta a todos." },
+            { id: 52, label: "Incapaces\n(Art. 40)", group: "solidaria", level: 3, text: "Padres, tutores, curadores.", details: "Son solidariamente responsables de las deudas del incapaz que administran." },
+            { id: 53, label: "Donaciones/Sucesiones\n(Art. 41)", group: "solidaria", level: 3, text: "Herederos y legatarios.", details: "Responden solidariamente hasta el valor de los bienes o derechos recibidos." },
+            { id: 54, label: "Fusiones/Transformaciones\n(Art. 42)", group: "solidaria", level: 3, text: "Sociedades resultantes o adquirentes.", details: "La sociedad absorbente o transformada asume todas las deudas y créditos tributarios pendientes." },
+            { id: 55, label: "Omisión Agente Retención/Percepción\n(Art. 43)", group: "solidaria", level: 3, text: "Falta de retención o percepción.", details: "Responden solidariamente si omiten retener/percibir. Una vez efectuada la retención, son los ÚNICOS responsables." },
+
+            // Subsidiary Responsibility Branch (Art. 44-46)
+            { id: 6, label: "Responsabilidad\nSubsidiaria (Art. 44-46)", group: "subsidiaria", level: 2, text: "Cobro secundario tras agotar al principal.", details: "Solo ejecutable cuando la Administración agota todas las instancias contra el deudor principal." },
+            { id: 61, label: "Administradores\n(Art. 44)", group: "subsidiaria", level: 3, text: "Gestores por culpa o negligencia.", details: "Responden si consienten infracciones o no gestionan el pago. Límite: valor de bienes administrados (salvo dolo)." },
+            { id: 62, label: "Adquirentes\n(Art. 45)", group: "subsidiaria", level: 3, text: "Compradores de bienes afectos.", details: "Responden hasta por el valor del importe que adeuden los bienes que adquieran." },
+            { id: 63, label: "Sociedad por Socios\n(Art. 46)", group: "subsidiaria", level: 3, text: "Sociedad constituida para defraudar.", details: "Requiere sentencia penal firme que demuestre que la sociedad se creó para cometer fraude." }
+        ];
+
+        // Relationships (Edges)
+        const edgesData = [
+            { from: 1, to: 2 },
+            { from: 1, to: 3 },
+            { from: 1, to: 4 },
+            { from: 2, to: 21 },
+            { from: 2, to: 22 },
+            { from: 3, to: 30 },
+            { from: 3, to: 31 },
+            { from: 3, to: 32 },
+            { from: 3, to: 33 },
+            { from: 3, to: 34 },
+            { from: 3, to: 35 },
+            { from: 4, to: 5 },
+            { from: 4, to: 6 },
+            { from: 5, to: 51 },
+            { from: 5, to: 52 },
+            { from: 5, to: 53 },
+            { from: 5, to: 54 },
+            { from: 5, to: 55 },
+            { from: 6, to: 61 },
+            { from: 6, to: 62 },
+            { from: 6, to: 63 }
+        ];
+
+        // Styling themes per group
+        const groupStyles = {
+            root: { color: { background: '#1e293b', border: '#0f172a' }, font: { color: '#ffffff' } },
+            activo: { color: { background: '#2563eb', border: '#1d4ed8' }, font: { color: '#ffffff' } },
+            pasivo: { color: { background: '#059669', border: '#047857' }, font: { color: '#ffffff' } },
+            general: { color: { background: '#64748b', border: '#475569' }, font: { color: '#ffffff' } },
+            solidaria: { color: { background: '#d97706', border: '#b45309' }, font: { color: '#ffffff' } },
+            subsidiaria: { color: { background: '#9333ea', border: '#7e22ce' }, font: { color: '#ffffff' } }
+        };
+
+        // Format network dataset
+        const visNodes = new vis.DataSet(nodesData.map(node => {
+            const style = groupStyles[node.group] || {};
+            return {
+                ...node,
+                shape: node.shape || 'box',
+                margin: 12,
+                shapeProperties: { borderRadius: 8 },
+                color: style.color || { background: '#3b82f6', border: '#1d4ed8' },
+                font: style.font || { color: '#ffffff', face: 'Inter', size: 14 }
+            };
+        }));
+
+        const visEdges = new vis.DataSet(edgesData.map(edge => ({
+            ...edge,
+            arrows: 'to',
+            color: { color: '#cbd5e1', highlight: '#3b82f6' },
+            width: 2,
+            smooth: { type: 'cubicBezier', forceDirection: 'horizontal', roundness: 0.4 }
+        })));
+
+        // Network Configuration
+        function initNetwork() {
+            const container = document.getElementById('mynetwork');
+            const data = { nodes: visNodes, edges: visEdges };
+            
+            const options = {
+                physics: {
+                    solver: 'forceAtlas2Based',
+                    forceAtlas2Based: {
+                        gravitationalConstant: -35,
+                        centralGravity: 0.005,
+                        springLength: 100,
+                        springConstant: 0.18
+                    },
+                    stabilization: { iterations: 150 }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    zoomView: true
+                },
+                layout: {
+                    improvedLayout: true
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+            // Click event to show drawer
+            network.on("click", function (params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    showNodeDetails(nodeId);
+                } else {
+                    closeDrawer();
+                }
+            });
+        }
+
+        // Display details in side drawer
+        function showNodeDetails(nodeId) {
+            selectedNodeId = nodeId;
+            const node = nodesData.find(n => n.id === nodeId);
+            if (!node) return;
+
+            const drawer = document.getElementById('details-drawer');
+            const badge = document.getElementById('nodeBadge');
+            const title = document.getElementById('nodeTitle');
+            const subtitle = document.getElementById('nodeSubtitle');
+            const desc = document.getElementById('nodeDescription');
+            const addDetails = document.getElementById('additionalDetails');
+
+            // Set content
+            title.innerText = node.label.replace(/\n/g, ' ');
+            subtitle.innerText = `ID Nodo: ${node.id} | Grupo: ${node.group.toUpperCase()}`;
+            desc.innerText = node.text || "Sin resumen disponible.";
+
+            // Extra details block
+            addDetails.innerHTML = '';
+            if (node.details) {
+                const detailBox = document.createElement('div');
+                detailBox.className = "bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900 leading-relaxed";
+                detailBox.innerHTML = `<strong>Análisis Clave:</strong><br>${node.details}`;
+                addDetails.appendChild(detailBox);
+            }
+
+            // Set badge color
+            const badgeColors = {
+                root: 'bg-slate-800 text-white',
+                activo: 'bg-blue-100 text-blue-800',
+                pasivo: 'bg-emerald-100 text-emerald-800',
+                solidaria: 'bg-amber-100 text-amber-800',
+                subsidiaria: 'bg-purple-100 text-purple-800'
+            };
+            badge.className = `px-2.5 py-1 text-xs font-bold rounded-full ${badgeColors[node.group] || 'bg-slate-100 text-slate-800'}`;
+            badge.innerText = node.group.toUpperCase();
+
+            // Open panel
+            drawer.classList.remove('translate-x-full');
+        }
+
+        function closeDrawer() {
+            document.getElementById('details-drawer').classList.add('translate-x-full');
+            selectedNodeId = null;
+        }
+
+        // Search bar filter logic
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase().trim();
+            if (!query) {
+                visNodes.forEach(node => {
+                    visNodes.update({ id: node.id, opacity: 1 });
+                });
+                return;
+            }
+
+            visNodes.forEach(node => {
+                const matches = node.label.toLowerCase().includes(query) || 
+                                (node.text && node.text.toLowerCase().includes(query)) ||
+                                (node.details && node.details.toLowerCase().includes(query));
+                
+                visNodes.update({
+                    id: node.id,
+                    opacity: matches ? 1 : 0.2
+                });
+            });
+        });
+
+        // Control buttons
+        document.getElementById('btnCloseDrawer').addEventListener('click', closeDrawer);
+
+        document.getElementById('btnResetView').addEventListener('click', () => {
+            if (network) {
+                network.fit({ animation: { duration: 800, easingFunction: 'easeInOutQuad' } });
+            }
+        });
+
+        document.getElementById('btnExpandAll').addEventListener('click', () => {
+            if (network) {
+                network.stabilize();
+                network.fit({ animation: { duration: 500 } });
+            }
+        });
+
+        document.getElementById('btnFocusNode').addEventListener('click', () => {
+            if (selectedNodeId !== null && network) {
+                network.focus(selectedNodeId, {
+                    scale: 1.2,
+                    animation: { duration: 600, easingFunction: 'easeInOutQuad' }
+                });
+            }
+        });
+
+        // Initialize on load
+        window.onload = function() {
+            initNetwork();
+        };
+    </script>
+</body>
+</html>
